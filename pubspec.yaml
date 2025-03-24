@@ -1,0 +1,39 @@
+name: save_to_dir
+description: A Flutter plugin that provides functionality to save files to a specified directory on the device. It supports downloading files from a URL and saving them to the device's storage, with progress tracking and notifications. This plugin is designed to work seamlessly with Android and can be extended to support other platforms in the future.
+version: 0.0.1
+homepage: https://github.com/antsf/save_to_dir
+repository: https://github.com/antsf/save_to_dir
+issue_tracker: https://github.com/antsf/save_to_dir/issues
+# author: Arfi Antasofa <antsf73@gmail.com>
+license: MIT
+
+environment:
+  sdk: ">=3.3.1 <4.0.0"
+  flutter: ">=1.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.antsf.save_to_dir
+        pluginClass: SaveToDirPlugin
+
+  uses-material-design: true
+
+topics:
+  - downloadfile
+  - savefile
+  - mediastore
+  - saf
+  - openfolder

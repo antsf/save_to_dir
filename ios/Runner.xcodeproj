@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE project SYSTEM "file://localhost/System/Library/DTDs/Project-1.0.dtd">
+<project name="Runner" default="Runner" version="1.0">
+    <objective-c>
+        <group>
+            <file>
+                <path>Classes/SaveToDirPlugin.h</path>
+            </file>
+            <file>
+                <path>Classes/SaveToDirPlugin.m</path>
+            </file>
+        </group>
+    </objective-c>
+    <buildConfigurationList>
+        <buildConfigurations>
+            <buildConfiguration name="Debug" type="com.apple.product-type.application">
+                <buildSettings>
+                    <setting name="CODE_SIGN_IDENTITY" value="iPhone Developer"/>
+                    <setting name="CODE_SIGNING_REQUIRED" value="YES"/>
+                    <setting name="DEVELOPMENT_TEAM" value="YOUR_TEAM_ID"/>
+                </buildSettings>
+            </buildConfiguration>
+            <buildConfiguration name="Release" type="com.apple.product-type.application">
+                <buildSettings>
+                    <setting name="CODE_SIGN_IDENTITY" value="iPhone Distribution"/>
+                    <setting name="CODE_SIGNING_REQUIRED" value="YES"/>
+                    <setting name="DEVELOPMENT_TEAM" value="YOUR_TEAM_ID"/>
+                </buildSettings>
+            </buildConfiguration>
+        </buildConfigurations>
+    </buildConfigurationList>
+</project>
