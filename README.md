@@ -200,7 +200,7 @@ class _MyAppState extends State<MyApp> {
 
 ## Contributing
 
-Contributions are welcome! If you encounter any issues or have feature requests, feel free to open an issue or submit a pull request on [GitHub](https://github.com/antsf7/save_to_dir).
+Contributions are welcome! If you encounter any issues or have feature requests, feel free to open an issue or submit a pull request on [GitHub](https://github.com/antsf/save_to_dir).
 
 ## License
 
