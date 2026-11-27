@@ -2,6 +2,7 @@ package com.antsf.save_to_dir
 
 import android.Manifest
 import android.app.Activity
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -18,10 +19,9 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.RequestPermissionsResultListener
-import android.app.DownloadManager
-import java.lang.Exception
 
-class SaveToDirPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, RequestPermissionsResultListener {
+class SaveToDirPlugin :
+        FlutterPlugin, MethodCallHandler, ActivityAware, RequestPermissionsResultListener {
 
     private lateinit var channel: MethodChannel
     private lateinit var context: Context
@@ -99,19 +99,14 @@ class SaveToDirPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, Request
     }
 
     private fun handleOpenFileManager(result: Result) {
+        // Opening the Downloads manager UI does not require any media permission.
         try {
-            if (checkAndRequestPermissions()) {
-                val downloadIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)
-                downloadIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(downloadIntent)
-                result.success(true)
-            } else {
-                result.error("PERMISSION_DENIED", "Storage permission not granted", null)
-            }
-
-            
+            val downloadIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)
+            downloadIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(downloadIntent)
+            result.success(true)
         } catch (e: Exception) {
-            result.error("ERROR", "Unable to open the file manager, $e", null)
+            result.error("ERROR", "Unable to open the file manager: $e", null)
         }
     }
 
@@ -125,6 +120,9 @@ class SaveToDirPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, Request
             return
         }
 
+        // On API 29+ (Android 10+) MediaStore.Downloads.EXTERNAL_CONTENT_URI does not
+        // require any read/write external storage permission.
+        // On API 28 and below we need WRITE_EXTERNAL_STORAGE.
         if (hasStoragePermission()) {
             saveFile.saveFile(imageBytes, mimeType, fileName) { success, message ->
                 if (success) {
@@ -148,85 +146,93 @@ class SaveToDirPlugin : FlutterPlugin, MethodCallHandler, ActivityAware, Request
             return
         }
 
+        // On API 29+ DownloadManager saves to Downloads without any media permission.
+        // On API 28 and below WRITE_EXTERNAL_STORAGE is required.
         if (hasStoragePermission()) {
             val downloadId = downloadFile.downloadFile(url, fileName)
             result.success(downloadId)
 
             downloadFile.trackDownloadProgress(
-                downloadId,
-                onProgress = { downloadedBytes, totalBytes ->
-                    channel.invokeMethod("onProgressCallback", mapOf(
-                        "bytes" to downloadedBytes,
-                        "total" to totalBytes
-                    ))
-                },
-                onComplete = { uri ->
-                    channel.invokeMethod("onCompleteCallback", mapOf(
-                        "downloadPath" to uri
-                    ))
-                },
-                onError = { reason ->
-                    channel.invokeMethod("onErrorCallback", mapOf(
-                        "error" to reason
-                    ))
-                }
+                    downloadId,
+                    onProgress = { downloadedBytes, totalBytes ->
+                        channel.invokeMethod(
+                                "onProgressCallback",
+                                mapOf("bytes" to downloadedBytes, "total" to totalBytes)
+                        )
+                    },
+                    onComplete = { uri ->
+                        channel.invokeMethod("onCompleteCallback", mapOf("downloadPath" to uri))
+                    },
+                    onError = { reason ->
+                        // Convert Int reason code to String so Dart can safely cast it.
+                        channel.invokeMethod(
+                                "onErrorCallback",
+                                mapOf("error" to "DOWNLOAD_FAILED: $reason")
+                        )
+                    }
             )
         } else {
+            // Only fire one path: send error via onErrorCallback channel method,
+            // then resolve result as success so _invokeMethod returns normally.
+            // (result.error() would also fire a PlatformException on the Dart side,
+            // causing onCallback to be invoked twice.)
             channel.invokeMethod("onErrorCallback", mapOf("error" to "STORAGE_PERMISSION_DENIED"))
-            result.error("PERMISSION_DENIED", "Storage permission not granted", null)
+            result.success(null)
         }
     }
 
+    /**
+     * Returns true if the app has the storage permission required for the current API level.
+     *
+     * - API 29+ (Android 10+): No permission is needed to write to Downloads via
+     * [android.app.DownloadManager] or [android.provider.MediaStore.Downloads]. Always returns
+     * `true`.
+     * - API 28 and below: [Manifest.permission.WRITE_EXTERNAL_STORAGE] is required.
+     */
     private fun hasStoragePermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13+ requires READ_MEDIA_IMAGES for accessing media files
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_MEDIA_IMAGES
-            ) == PackageManager.PERMISSION_GRANTED
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ – scoped storage; no permission needed to write to Downloads.
+            true
         } else {
-            // For older versions, use READ_EXTERNAL_STORAGE
+            // Android 9 and below – need legacy WRITE_EXTERNAL_STORAGE.
             ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
+                    context,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) == PackageManager.PERMISSION_GRANTED
         }
     }
 
+    /**
+     * Checks the storage permission for the current API level and requests it if needed.
+     *
+     * Returns `true` if permission is already granted (or not required).
+     */
     private fun checkAndRequestPermissions(): Boolean {
         return if (hasStoragePermission()) {
             true
         } else {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                // Request READ_MEDIA_IMAGES for Android 13+
-                ActivityCompat.requestPermissions(
+            // Only reaches here on API 28 and below.
+            ActivityCompat.requestPermissions(
                     activity,
-                    arrayOf(Manifest.permission.READ_MEDIA_IMAGES),
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
                     REQUEST_CODE_STORAGE_PERMISSION
-                )
-            } else {
-                // Request READ_EXTERNAL_STORAGE for older versions
-                ActivityCompat.requestPermissions(
-                    activity,
-                    arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-                    REQUEST_CODE_STORAGE_PERMISSION
-                )
-            }
+            )
             false
         }
     }
 
     private fun openStorageSettings() {
-        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-        }
+        val intent =
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
         activity.startActivity(intent)
     }
 
     override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
+            requestCode: Int,
+            permissions: Array<out String>,
+            grantResults: IntArray
     ): Boolean {
         if (requestCode == REQUEST_CODE_STORAGE_PERMISSION && grantResults.isNotEmpty()) {
             val hasPermission = grantResults[0] == PackageManager.PERMISSION_GRANTED

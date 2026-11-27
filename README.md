@@ -4,18 +4,33 @@ The `SaveToDir` plugin provides functionality to save files to a specified direc
 
 ## Features
 
-- Save files to the device's storage.
+- Save files to the device's Downloads directory.
 - Download files from a URL with progress tracking.
 - Show notifications for download progress and completion.
-- Request storage permissions dynamically.
+- No media permissions required on Android 10+ (API 29+).
+
+## Permissions
+
+| Android version | Permission required |
+|---|---|
+| Android 10+ (API 29+) | **None** – scoped storage covers Downloads writes |
+| Android 9 and below (API ≤ 28) | `WRITE_EXTERNAL_STORAGE` |
+
+The plugin declares `WRITE_EXTERNAL_STORAGE` in its own `AndroidManifest.xml` with `maxSdkVersion="28"`, so you do **not** need to add `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, or any other media permission to your app's manifest.
+
+Call `requestStoragePermission()` before saving/downloading on devices running Android 9 or below. On Android 10+ the call immediately returns `true` without prompting the user.
 
 ## Installation
 
 To use the `SaveToDir` plugin, add it to your `pubspec.yaml` file:
 
 ```yaml
+flutter pub add save_to_dir
+```
+or
+```yaml
 dependencies:
-  save_to_dir: ^.0.0.1
+  save_to_dir: ^0.0.1
 ```
 
 ## Usage
